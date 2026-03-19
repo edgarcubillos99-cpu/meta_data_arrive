@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { NormalizedMessageDto } from '../common/dtos/normalized-message.dto';
+import { NormalizedMessageDto } from '../../common/dtos/normalized-message.dto';
 
 @Injectable()
 export class NormalizerService {

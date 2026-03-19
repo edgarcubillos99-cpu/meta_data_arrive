@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { RabbitSubscribe, AmqpConnection } from '@golevelup/nestjs-rabbitmq';
-import { UbersmithService } from '../ubersmith/ubersmith.service';
-import { IdentityService } from '../identity/identity.service';
+import { UbersmithService } from '../../modules/ubersmith/ubersmith.service';
+import { IdentityService } from '../../modules/identity/identity.service';
 
 @Injectable()
 export class EnrichmentConsumer {

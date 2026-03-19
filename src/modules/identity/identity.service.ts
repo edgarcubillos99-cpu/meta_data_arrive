@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { RedisStateService } from './redis-state.service';
-// ... imports
+import { RedisStateService } from '../../modules/identity/redis-state.service';
 
 @Injectable()
 export class IdentityService {
@@ -27,5 +26,17 @@ export class IdentityService {
     }
 
     return true; // Sigue atrapado en el flujo hasta que diga SI o NO
+  }
+
+  async askForConfirmation(userId: string, channel: string, clientData: any): Promise<boolean> {
+    const existing = await this.redis.get(`pending_auth:${userId}`);
+    if (existing) return true;
+
+    await this.redis.set(`pending_auth:${userId}`, { userId, channel, cliente: clientData });
+    return true;
+  }
+
+  async savePendingMessageContext(userId: string, message: any): Promise<void> {
+    await this.redis.set(`pending_msg:${userId}`, message);
   }
 }

@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body, Query, Headers, UnauthorizedException } from '@nestjs/common';
-import { NormalizerService } from '../normalizer/normalizer.service';
-import { RabbitPublisherService } from '../rabbitmq/rabbit-publisher.service';
+import { NormalizerService } from '../../modules/normalizer/normalizer.service';
+import { RabbitPublisherService } from '../../modules/rabbitmq/rabbit-publisher.service';
 
 @Controller('webhooks/meta')
 export class WebhookController {
@@ -22,7 +22,7 @@ export class WebhookController {
     // 1. Validar firma de Meta (Omitido por brevedad, usar crypto.createHmac)
     
     // 2. Normalizar
-    const normalizedMessages = await this.normalizer.normalizeMetaPayload(payload);
+    const normalizedMessages = await this.normalizer.normalizeMetaPayload(payload, 'whatsapp');
     
     // 3. Enviar a RabbitMQ (El manejo de media se hará asíncronamente o antes de encolar)
     for (const msg of normalizedMessages) {

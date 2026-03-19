@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
-import { NormalizedMessageDto } from '../common/dtos/normalized-message.dto';
+import { NormalizedMessageDto } from '../../common/dtos/normalized-message.dto';
 
 @Injectable()
 export class RabbitPublisherService {
