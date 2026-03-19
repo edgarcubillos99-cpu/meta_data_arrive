@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { RabbitSubscribe, AmqpConnection } from '@golevelup/nestjs-rabbitmq';
 import { UbersmithService } from '../../modules/ubersmith/ubersmith.service';
 import { IdentityService } from '../../modules/identity/identity.service';
+import { ServiceInquiryService } from '../../modules/meta-outbound/service-inquiry.service';
 
 @Injectable()
 export class EnrichmentConsumer {
@@ -10,6 +11,7 @@ export class EnrichmentConsumer {
   constructor(
     private readonly ubersmith: UbersmithService,
     private readonly identity: IdentityService,
+    private readonly serviceInquiry: ServiceInquiryService,
     private readonly amqpConnection: AmqpConnection,
   ) {}
 
@@ -26,8 +28,14 @@ export class EnrichmentConsumer {
     try {
       this.logger.log(`Procesando mensaje del usuario: ${msg.user_id}`);
 
-      // 1. Consultar Ubersmith por teléfono/ID
-      const clientData = await this.ubersmith.findClientByPhone(msg.user_id);
+      // 0. Pregunta previa (cliente actual vs potencial) antes de enriquecer con CRM
+      await this.serviceInquiry.sendPreEnrichmentInquiryIfNeeded(msg);
+
+      // 1. CRM: búsqueda por teléfono solo aplica a WhatsApp (E.164). Messenger/Instagram usan IDs distintos.
+      const clientData =
+        msg.channel === 'whatsapp'
+          ? await this.ubersmith.findClientByPhone(msg.user_id)
+          : null;
 
       if (clientData) {
         // 2. Iniciar flujo de confirmación determinística

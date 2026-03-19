@@ -8,8 +8,12 @@ export class RedisStateService {
     return this.mockRedis.get(key);
   }
 
-  async set(key: string, value: any, ttl?: number): Promise<void> {
+  /** ttlSeconds: tiempo de vida en segundos (opcional; el mock borra la clave al expirar). */
+  async set(key: string, value: any, ttlSeconds?: number): Promise<void> {
     this.mockRedis.set(key, value);
+    if (ttlSeconds && ttlSeconds > 0) {
+      setTimeout(() => this.mockRedis.delete(key), ttlSeconds * 1000);
+    }
   }
 
   async delete(key: string): Promise<void> {

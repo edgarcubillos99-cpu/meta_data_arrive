@@ -21,8 +21,8 @@ export class WebhookController {
   async handleIncomingMessage(@Headers('x-hub-signature-256') signature: string, @Body() payload: any) {
     // 1. Validar firma de Meta (Omitido por brevedad, usar crypto.createHmac)
     
-    // 2. Normalizar
-    const normalizedMessages = await this.normalizer.normalizeMetaPayload(payload, 'whatsapp');
+    // 2. Normalizar (WhatsApp Business, Messenger u Instagram según payload.object)
+    const normalizedMessages = await this.normalizer.normalizeMetaPayload(payload);
     
     // 3. Enviar a RabbitMQ (El manejo de media se hará asíncronamente o antes de encolar)
     for (const msg of normalizedMessages) {
