@@ -10,10 +10,24 @@ export class WebhookController {
   ) {}
 
   @Get()
-  verifyWebhook(@Query('hub.mode') mode: string, @Query('hub.verify_token') token: string, @Query('hub.challenge') challenge: string) {
+  verifyWebhook(
+    @Query('hub.mode') mode: string, 
+    @Query('hub.verify_token') token: string, 
+    @Query('hub.challenge') challenge: string
+  ) {
+    // LOG DE DEPURACIÓN
+    console.log('--- WEBHOOK VERIFICATION REQUEST ---');
+    console.log('Mode:', mode);
+    console.log('Token recibido de Meta:', token);
+    console.log('Token en mi .env local:', process.env.META_VERIFY_TOKEN);
+    console.log('Challenge:', challenge);
+
     if (mode === 'subscribe' && token === process.env.META_VERIFY_TOKEN) {
+      console.log('✅ Verificación exitosa. Retornando challenge.');
       return challenge;
     }
+    
+    console.error('❌ Falló la verificación. Retornando 401 Unauthorized.');
     throw new UnauthorizedException();
   }
 
