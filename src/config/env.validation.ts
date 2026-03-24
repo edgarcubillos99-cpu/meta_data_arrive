@@ -18,9 +18,6 @@ export class EnvironmentVariables {
   @IsString()
   RABBITMQ_URI: string;
 
-  @IsUrl({ require_tld: false })
-  UBERSMITH_API_URL: string;
-
   /** WhatsApp Cloud API: ID del número (Meta Business Suite) */
   @IsOptional()
   @IsString()

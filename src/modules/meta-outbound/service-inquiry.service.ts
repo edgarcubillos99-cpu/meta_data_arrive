@@ -10,8 +10,9 @@ const DEFAULT_INQUIRY_MESSAGE =
   'Hola 👋 Antes de continuar, ¿ya cuentas con algún servicio contratado con nosotros? Responde sí o no para orientarte mejor.';
 
 /**
- * Envía una pregunta inicial para distinguir clientes actuales vs potenciales,
- * antes del enriquecimiento con CRM (Ubersmith), en WhatsApp, Messenger e Instagram.
+ * Envía una pregunta inicial para distinguir clientes actuales vs potenciales
+ * en WhatsApp, Messenger e Instagram. El agente downstream puede usar esa señal
+ * para decidir consultas externas (p. ej. CRM) por su cuenta.
  */
 @Injectable()
 export class ServiceInquiryService {

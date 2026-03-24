@@ -1,7 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { RabbitSubscribe, AmqpConnection } from '@golevelup/nestjs-rabbitmq';
-import { UbersmithService } from '../../modules/ubersmith/ubersmith.service';
-import { IdentityService } from '../../modules/identity/identity.service';
 import { ServiceInquiryService } from '../../modules/meta-outbound/service-inquiry.service';
 
 @Injectable()
@@ -9,72 +7,79 @@ export class EnrichmentConsumer {
   private readonly logger = new Logger(EnrichmentConsumer.name);
 
   constructor(
-    private readonly ubersmith: UbersmithService,
-    private readonly identity: IdentityService,
     private readonly serviceInquiry: ServiceInquiryService,
     private readonly amqpConnection: AmqpConnection,
   ) {}
 
+  // --- CONSUMIDORES POR CANAL ---
+
   @RabbitSubscribe({
     exchange: 'telecom_exchange',
-    routingKey: 'message.incoming',
-    queue: 'incoming_messages',
+    routingKey: 'message.incoming.whatsapp',
+    queue: 'incoming_whatsapp',
     queueOptions: {
       deadLetterExchange: 'telecom_dlx',
-      deadLetterRoutingKey: 'message.incoming.dlq',
+      deadLetterRoutingKey: 'message.incoming.whatsapp.dlq',
     },
   })
-  async handleIncomingMessage(msg: any) {
-    try {
-      this.logger.log(`Procesando mensaje del usuario: ${msg.user_id}`);
+  async handleWhatsAppMessage(msg: any) {
+    this.logger.log(`📥 [WhatsApp] Recibido mensaje de: ${msg.user_id}`);
+    await this.processMessage(msg);
+  }
 
-      // 0. Pregunta previa (cliente actual vs potencial) antes de enriquecer con CRM
+  @RabbitSubscribe({
+    exchange: 'telecom_exchange',
+    routingKey: 'message.incoming.messenger',
+    queue: 'incoming_messenger',
+    queueOptions: {
+      deadLetterExchange: 'telecom_dlx',
+      deadLetterRoutingKey: 'message.incoming.messenger.dlq',
+    },
+  })
+  async handleMessengerMessage(msg: any) {
+    this.logger.log(`📥 [Messenger] Recibido mensaje de: ${msg.user_id}`);
+    await this.processMessage(msg);
+  }
+
+  @RabbitSubscribe({
+    exchange: 'telecom_exchange',
+    routingKey: 'message.incoming.instagram',
+    queue: 'incoming_instagram',
+    queueOptions: {
+      deadLetterExchange: 'telecom_dlx',
+      deadLetterRoutingKey: 'message.incoming.instagram.dlq',
+    },
+  })
+  async handleInstagramMessage(msg: any) {
+    this.logger.log(`📥 [Instagram] Recibido mensaje de: ${msg.user_id}`);
+    await this.processMessage(msg);
+  }
+
+  // --- LÓGICA CENTRAL DE PROCESAMIENTO ---
+
+  private async processMessage(msg: any) {
+    try {
       await this.serviceInquiry.sendPreEnrichmentInquiryIfNeeded(msg);
 
-      // 1. CRM: búsqueda por teléfono solo aplica a WhatsApp (E.164). Messenger/Instagram usan IDs distintos.
-      const clientData =
-        msg.channel === 'whatsapp'
-          ? await this.ubersmith.findClientByPhone(msg.user_id)
-          : null;
+      const enrichedMessage = this.buildEnrichedMessage(msg);
 
-      if (clientData) {
-        // 2. Iniciar flujo de confirmación determinística
-        const confirmationPending = await this.identity.askForConfirmation(msg.user_id, msg.channel, clientData);
-        
-        if (confirmationPending) {
-           // Guardamos el mensaje original en cache/Redis esperando respuesta del usuario
-           await this.identity.savePendingMessageContext(msg.user_id, msg);
-           return; // El flujo se pausa aquí hasta que el usuario responda "SI/NO"
-        }
-      }
-
-      // 3. Si no hay cliente o ya está confirmado por cache, empaquetar
-      const enrichedMessage = this.buildEnrichedMessage(msg, clientData);
-
-      // 4. Publicar en cola final para LLM
       await this.amqpConnection.publish('telecom_exchange', 'message.enriched', enrichedMessage);
 
     } catch (error) {
-      this.logger.error(`Error procesando mensaje: ${error.message}`);
-      // Al lanzar error, nestjs-rabbitmq lo enviará a la DLQ automáticamente tras N reintentos
+      this.logger.error(`Error procesando mensaje de ${msg.channel}: ${error.message}`);
+      // Al lanzar error, nestjs-rabbitmq lo enviará a la DLQ correspondiente automáticamente
       throw error; 
     }
   }
 
-  private buildEnrichedMessage(msg: any, clientData: any) {
-     return {
-        user_id: msg.user_id,
-        channel: msg.channel,
-        message: msg.text,
-        attachments: msg.attachments || [],
-        cliente: clientData ? {
-          clientid: clientData.id,
-          nombre: clientData.name,
-          servicio: clientData.service_plan,
-          email: clientData.email,
-          telefono: clientData.phone
-        } : null,
-        metadata: { timestamp: new Date().toISOString() }
-      };
+  private buildEnrichedMessage(msg: any) {
+    return {
+      user_id: msg.user_id,
+      channel: msg.channel,
+      message: msg.text,
+      attachments: msg.attachments || [],
+      cliente: null,
+      metadata: { timestamp: new Date().toISOString() },
+    };
   }
 }

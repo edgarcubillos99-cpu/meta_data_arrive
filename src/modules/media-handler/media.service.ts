@@ -1,5 +1,5 @@
-import { Injectable, Logger, BadRequestException, InternalServerErrorException } from '@nestjs/common';
-import { promises as fs } from 'fs';
+import { Injectable, Logger, BadRequestException, InternalServerErrorException, OnModuleInit } from '@nestjs/common';
+import { promises as fsPromises, createWriteStream } from 'fs';
 import * as path from 'path';
 import axios from 'axios';
 import * as NodeClam from 'clamscan';
@@ -8,7 +8,7 @@ const ALLOWED_MIME_SIGNATURES: Record<string, { mime: string; ext: string }> = {
   'ffd8ff': { mime: 'image/jpeg', ext: 'jpg' },
   '89504e47': { mime: 'image/png', ext: 'png' },
   '25504446': { mime: 'application/pdf', ext: 'pdf' },
-  '4f676753': { mime: 'audio/ogg', ext: 'ogg' },
+  '4f676753': { mime: 'audio/ogg', ext: 'ogg' }, // Usado por WhatsApp para notas de voz
   'd0cf11e0': { mime: 'application/msword', ext: 'doc' },
   '504b0304': { mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', ext: 'docx' },
 };
@@ -16,7 +16,7 @@ const ALLOWED_MIME_SIGNATURES: Record<string, { mime: string; ext: string }> = {
 const UPLOADS_DIR = path.resolve(process.cwd(), 'uploads', 'attachments');
 
 @Injectable()
-export class MediaService {
+export class MediaService implements OnModuleInit { // Implementar OnModuleInit
   private clamscan: NodeClam.Clamscan;
   private readonly logger = new Logger(MediaService.name);
 
@@ -25,7 +25,7 @@ export class MediaService {
   }
 
   private async ensureUploadsDir(): Promise<void> {
-    await fs.mkdir(UPLOADS_DIR, { recursive: true });
+    await fsPromises.mkdir(UPLOADS_DIR, { recursive: true });
   }
 
   private detectMimeType(buffer: Buffer): { mime: string; ext: string } | null {
@@ -48,41 +48,78 @@ export class MediaService {
   }
 
   async processAttachment(mediaUrl: string, metaToken: string): Promise<any> {
+    // 1. Descargar como Stream en lugar de Buffer
     const response = await axios.get(mediaUrl, {
-      responseType: 'arraybuffer',
+      responseType: 'stream', 
       headers: { Authorization: `Bearer ${metaToken}` },
     });
-    const buffer = Buffer.from(response.data);
 
-    const typeInfo = this.detectMimeType(buffer);
-    if (!typeInfo) {
-      throw new BadRequestException(`MIME type no soportado o no reconocido.`);
-    }
+    // Archivo temporal mientras se descarga y valida
+    const tempFileName = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}.tmp`;
+    const tempFilePath = path.join(UPLOADS_DIR, tempFileName);
+    const writer = createWriteStream(tempFilePath);
 
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${typeInfo.ext}`;
-    const filePath = path.join(UPLOADS_DIR, fileName);
-    await fs.writeFile(filePath, buffer);
+    let typeInfo: { mime: string; ext: string } | null = null;
+    let isFirstChunk = true;
 
-    this.logger.log(`Archivo guardado localmente: ${filePath}`);
+    return new Promise((resolve, reject) => {
+      // 2. Interceptar los fragmentos (chunks) de datos
+      response.data.on('data', (chunk: Buffer) => {
+        if (isFirstChunk) {
+          isFirstChunk = false;
+          // Validar magic bytes solo con el primer fragmento
+          typeInfo = this.detectMimeType(chunk);
+          
+          if (!typeInfo) {
+            response.data.destroy(); // Abortar conexión con Meta
+            writer.end();
+            return reject(new BadRequestException(`MIME type no soportado o archivo corrupto.`));
+          }
+        }
+      });
 
-    // 2. Escaneo Antivirus
-    try {
-      const { isInfected, viruses } = await this.clamscan.isInfected(filePath);
-      if (isInfected) {
-        await fs.unlink(filePath); // Eliminar archivo peligroso
-        this.logger.warn(`Archivo infectado detectado y eliminado: ${viruses.join(', ')}`);
-        throw new BadRequestException('El archivo contiene malware.');
-      }
-    } catch (error) {
-      await fs.unlink(filePath).catch(() => {});
-      throw new InternalServerErrorException('Error al escanear el archivo.');
-    }
+      // Canalizar el stream de descarga directo al archivo en disco
+      response.data.pipe(writer);
 
-    return {
-      file_id: fileName,
-      url: `${process.env.APP_BASE_URL}/uploads/attachments/${fileName}`,
-      type: typeInfo.mime,
-      path: filePath,
-    };
+      writer.on('finish', async () => {
+        // Si falló la validación inicial, limpiamos la basura
+        if (!typeInfo) {
+          await fsPromises.unlink(tempFilePath).catch(() => {});
+          return;
+        }
+
+        // 3. Renombrar con la extensión correcta descubierta
+        const finalFileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${typeInfo.ext}`;
+        const finalFilePath = path.join(UPLOADS_DIR, finalFileName);
+        await fsPromises.rename(tempFilePath, finalFilePath);
+
+        this.logger.log(`Archivo guardado localmente vía Stream: ${finalFilePath}`);
+
+        // 4. Escaneo Antivirus (El archivo ya está en disco, no en RAM)
+        try {
+          const { isInfected, viruses } = await this.clamscan.isInfected(finalFilePath);
+          if (isInfected) {
+            await fsPromises.unlink(finalFilePath);
+            this.logger.warn(`Malware detectado y eliminado: ${viruses.join(', ')}`);
+            return reject(new BadRequestException('El archivo contiene malware.'));
+          }
+
+          // Resolver con la metadata lista para el mensaje enriquecido
+          resolve({
+            file_id: finalFileName,
+            url: `${process.env.APP_BASE_URL}/uploads/attachments/${finalFileName}`,
+            type: typeInfo.mime,
+            path: finalFilePath,
+          });
+        } catch (error) {
+          await fsPromises.unlink(finalFilePath).catch(() => {});
+          reject(new InternalServerErrorException('Error al escanear el archivo.'));
+        }
+      });
+
+      writer.on('error', () => {
+        reject(new InternalServerErrorException('Error escribiendo el archivo en el servidor.'));
+      });
+    });
   }
 }

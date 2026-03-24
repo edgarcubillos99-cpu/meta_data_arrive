@@ -6,7 +6,6 @@ import { RabbitmqModule } from './modules/rabbitmq/rabbitmq.module';
 import { MetaWebhookModule } from './modules/meta-webhook/meta-webhook.module';
 import { NormalizerModule } from './modules/normalizer/normalizer.module';
 import { OrchestratorModule } from './modules/orchestrator/orchestrator.module';
-import { UbersmithModule } from './modules/ubersmith/ubersmith.module';
 import { IdentityModule } from './modules/identity/identity.module';
 // Omitimos MediaHandlerModule por ahora para no recargar el ejemplo, pero su estructura es idéntica a NormalizerModule
 
@@ -23,7 +22,6 @@ import { IdentityModule } from './modules/identity/identity.module';
 
     // 3. Módulos de Dominio / Features
     NormalizerModule,
-    UbersmithModule,
     IdentityModule,
     
     // 4. Módulos de Entrada/Salida (Endpoints y Workers)

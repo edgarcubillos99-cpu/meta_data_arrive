@@ -7,9 +7,13 @@ export class RabbitPublisherService {
   constructor(private readonly amqp: AmqpConnection) {}
 
   async publishIncomingMessage(message: NormalizedMessageDto) {
+    // Generamos una routing key dinámica basada en el canal:
+    // Ej: 'message.incoming.whatsapp', 'message.incoming.messenger', etc.
+    const routingKey = `message.incoming.${message.channel}`;
+    
     await this.amqp.publish(
       'telecom_exchange', 
-      'message.incoming', 
+      routingKey, 
       message,
       { persistent: true } // Garantiza que no se pierdan si Rabbit se reinicia
     );
