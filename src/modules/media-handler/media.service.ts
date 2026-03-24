@@ -37,10 +37,11 @@ export class MediaService implements OnModuleInit { // Implementar OnModuleInit
   }
 
   async onModuleInit() {
+    const clamPort = parseInt(String(process.env.CLAMAV_PORT || '3310'), 10);
     this.clamscan = await new NodeClam().init({
       clamdscan: {
         host: process.env.CLAMAV_HOST || 'localhost',
-        port: process.env.CLAMAV_PORT || 3310,
+        port: Number.isFinite(clamPort) ? clamPort : 3310,
         active: true,
       },
       preference: 'clamdscan'

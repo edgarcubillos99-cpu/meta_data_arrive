@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { IdentityService } from './identity.service';
-import { RedisStateService } from './redis-state.service';
+import { MemoryStateService } from './memory-state.service';
 
 @Module({
-  providers: [IdentityService, RedisStateService],
+  providers: [IdentityService, MemoryStateService],
   exports: [IdentityService],
 })
 export class IdentityModule {}

@@ -1,0 +1,43 @@
+# RabbitMQ: se usa el servicio externo configurado en RABBITMQ_URI (.env), no forma parte de este stack.
+services:
+  clamav:
+    image: clamav/clamav:1.4
+    restart: unless-stopped
+    ports:
+      - "3310:3310"
+    # La primera descarga de firmas puede tardar varios minutos; el daemon escucha en 3310 cuando está listo.
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    env_file:
+      - .env
+    environment:
+      PORT: "${PORT}"
+      APP_BASE_URL: "${APP_BASE_URL}"
+      META_VERIFY_TOKEN: "${META_VERIFY_TOKEN}"
+      META_APP_SECRET: "${META_APP_SECRET}"
+      RABBITMQ_URI: "${RABBITMQ_URI}"
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: "3310"
+      WHATSAPP_PHONE_NUMBER_ID: "${WHATSAPP_PHONE_NUMBER_ID}"
+      WHATSAPP_GRAPH_API_TOKEN: "${WHATSAPP_GRAPH_API_TOKEN}"
+      WHATSAPP_GRAPH_API_VERSION: "${WHATSAPP_GRAPH_API_VERSION}"
+      SERVICE_INQUIRY_MESSAGE: "${SERVICE_INQUIRY_MESSAGE}"
+      SERVICE_INQUIRY_SEND_ONCE: "${SERVICE_INQUIRY_SEND_ONCE}"
+      META_PAGE_ID: "${META_PAGE_ID}"
+      META_PAGE_ACCESS_TOKEN: "${META_PAGE_ACCESS_TOKEN}"
+      INSTAGRAM_PAGE_ID: "${INSTAGRAM_PAGE_ID}"
+      META_GRAPH_API_VERSION: "${META_GRAPH_API_VERSION}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      clamav:
+        condition: service_started
+    volumes:
+      - app_uploads:/app/uploads
+
+volumes:
+  app_uploads:
