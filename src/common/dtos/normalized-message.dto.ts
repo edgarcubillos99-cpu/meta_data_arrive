@@ -6,6 +6,14 @@ export class AttachmentDto {
   type: string; // MIME o tipo genérico
 }
 
+/** Ubicación compartida (WhatsApp `messages[].location`). */
+export class LocationDto {
+  latitude: number;
+  longitude: number;
+  name?: string;
+  address?: string;
+}
+
 /**
  * Mensaje unificado para colas internas.
  * - WhatsApp: `user_id` = número E.164 sin + (campo `from` del webhook).
@@ -17,6 +25,8 @@ export class NormalizedMessageDto {
   channel: MetaMessagingChannel;
   text: string;
   attachments: AttachmentDto[];
+  /** WhatsApp: mensaje tipo `location`. */
+  location?: LocationDto;
   /** Unix segundos o ms según origen; se normaliza lo posible */
   timestamp: number;
 }

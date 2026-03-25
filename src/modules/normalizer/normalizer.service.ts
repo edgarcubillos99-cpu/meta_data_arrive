@@ -1,4 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import axios from 'axios';
 import { NormalizedMessageDto } from '../../common/dtos/normalized-message.dto';
 import type { MetaMessagingChannel } from '../../common/types/meta-messaging.types';
 
@@ -10,6 +12,8 @@ import type { MetaMessagingChannel } from '../../common/types/meta-messaging.typ
 @Injectable()
 export class NormalizerService {
   private readonly logger = new Logger(NormalizerService.name);
+
+  constructor(private readonly config: ConfigService) {}
 
   /**
    * Detecta `payload.object` y normaliza sin pasar el canal manualmente desde el controller.
@@ -24,7 +28,7 @@ export class NormalizerService {
 
     switch (objectType) {
       case 'whatsapp_business_account':
-        return this.normalizeWhatsApp(payload);
+        return await this.normalizeWhatsApp(payload);
       case 'page':
         return this.normalizePageMessaging(payload, 'messenger');
       case 'instagram':
@@ -35,7 +39,7 @@ export class NormalizerService {
     }
   }
 
-  private normalizeWhatsApp(payload: any): NormalizedMessageDto[] {
+  private async normalizeWhatsApp(payload: any): Promise<NormalizedMessageDto[]> {
     const messages: NormalizedMessageDto[] = [];
 
     if (!payload.entry) return messages;
@@ -46,12 +50,15 @@ export class NormalizerService {
         if (!msgData) continue;
 
         const ts = this.parseTimestamp(msgData.timestamp);
+        const location = this.extractWhatsAppLocation(msgData);
+        const attachments = await this.extractWhatsAppMedia(msgData);
 
         messages.push({
           user_id: String(msgData.from),
           channel: 'whatsapp',
-          text: msgData.text?.body ?? '',
-          attachments: this.extractWhatsAppMedia(msgData),
+          text: this.extractWhatsAppText(msgData),
+          attachments,
+          ...(location ? { location } : {}),
           timestamp: ts,
         });
       }
@@ -101,24 +108,111 @@ export class NormalizerService {
     }));
   }
 
-  private extractWhatsAppMedia(msgData: any): NormalizedMessageDto['attachments'] {
+  /**
+   * Texto del mensaje: cuerpo de `type: text`, o pie de foto/archivo (`caption`) en imagen, vídeo o documento.
+   * WhatsApp no rellena `text.body` cuando el usuario envía solo media con leyenda.
+   */
+  private extractWhatsAppText(msgData: any): string {
+    const body = msgData.text?.body;
+    if (typeof body === 'string' && body.trim()) return body.trim();
+
+    const caption =
+      msgData.image?.caption ??
+      msgData.video?.caption ??
+      msgData.document?.caption;
+    if (typeof caption === 'string' && caption.trim()) return caption.trim();
+
+    return '';
+  }
+
+  /**
+   * WhatsApp envía `location` con lat/lng; no va en `attachments`.
+   * @see https://developers.facebook.com/docs/whatsapp/cloud-api/webhooks/payload-examples
+   */
+  private extractWhatsAppLocation(msgData: any): NormalizedMessageDto['location'] {
+    const loc = msgData.location;
+    if (!loc) return undefined;
+    const lat = Number(loc.latitude);
+    const lng = Number(loc.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return undefined;
+    return {
+      latitude: lat,
+      longitude: lng,
+      name: typeof loc.name === 'string' && loc.name.trim() ? loc.name.trim() : undefined,
+      address: typeof loc.address === 'string' && loc.address.trim() ? loc.address.trim() : undefined,
+    };
+  }
+
+  /**
+   * El webhook solo incluye el id del medio; la URL temporal se obtiene con Graph API (requiere WHATSAPP_GRAPH_API_TOKEN).
+   */
+  private async resolveWhatsAppMediaUrl(mediaId: string): Promise<string | undefined> {
+    const token = this.config.get<string>('WHATSAPP_GRAPH_API_TOKEN')?.trim();
+    if (!token) return undefined;
+    const version = this.config.get<string>('WHATSAPP_GRAPH_API_VERSION')?.trim() || 'v21.0';
+    try {
+      const { data } = await axios.get<{ url?: string }>(
+        `https://graph.facebook.com/${version}/${encodeURIComponent(mediaId)}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 15000,
+        },
+      );
+      return typeof data.url === 'string' ? data.url : undefined;
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        const ax = err;
+        const status = ax.response?.status;
+        if (status === 401) {
+          this.logger.warn(
+            `Graph API 401 al obtener medio WhatsApp (${mediaId}): WHATSAPP_GRAPH_API_TOKEN inválido, expirado o sin permisos para WhatsApp. Usa el token de "API setup" de la app (WhatsApp > API setup), no el App Secret ni un token de página de Facebook.`,
+          );
+          return undefined;
+        }
+        const metaMsg = ax.response?.data?.error?.message;
+        this.logger.warn(
+          `No se pudo resolver URL de medio WhatsApp (${mediaId}): HTTP ${status ?? '?'}` +
+            (metaMsg ? ` — ${metaMsg}` : ` — ${ax.message}`),
+        );
+        return undefined;
+      }
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`No se pudo resolver URL de medio WhatsApp (${mediaId}): ${msg}`);
+      return undefined;
+    }
+  }
+
+  private async extractWhatsAppMedia(msgData: any): Promise<NormalizedMessageDto['attachments']> {
     if (msgData.image) {
-      return [{ file_id: msgData.image.id, url: '', type: msgData.image.mime_type ?? 'image' }];
+      const id = msgData.image.id;
+      const url = (await this.resolveWhatsAppMediaUrl(id)) ?? '';
+      return [{ file_id: id, url, type: msgData.image.mime_type ?? 'image' }];
     }
     if (msgData.document) {
+      const id = msgData.document.id;
+      const url = (await this.resolveWhatsAppMediaUrl(id)) ?? '';
       return [
         {
-          file_id: msgData.document.id,
-          url: '',
+          file_id: id,
+          url,
           type: msgData.document.mime_type ?? 'application/octet-stream',
         },
       ];
     }
     if (msgData.audio) {
-      return [{ file_id: msgData.audio.id, url: '', type: msgData.audio.mime_type ?? 'audio' }];
+      const id = msgData.audio.id;
+      const url = (await this.resolveWhatsAppMediaUrl(id)) ?? '';
+      return [{ file_id: id, url, type: msgData.audio.mime_type ?? 'audio' }];
     }
     if (msgData.video) {
-      return [{ file_id: msgData.video.id, url: '', type: msgData.video.mime_type ?? 'video' }];
+      const id = msgData.video.id;
+      const url = (await this.resolveWhatsAppMediaUrl(id)) ?? '';
+      return [{ file_id: id, url, type: msgData.video.mime_type ?? 'video' }];
+    }
+    if (msgData.sticker) {
+      const id = msgData.sticker.id;
+      const url = (await this.resolveWhatsAppMediaUrl(id)) ?? '';
+      return [{ file_id: id, url, type: msgData.sticker.mime_type ?? 'image/webp' }];
     }
     return [];
   }

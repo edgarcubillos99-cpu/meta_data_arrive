@@ -18,12 +18,11 @@ export class EnvironmentVariables {
   @IsString()
   RABBITMQ_URI: string;
 
-  /** WhatsApp Cloud API: ID del número (Meta Business Suite) */
+  /** WhatsApp Cloud API: ID del número (envío de mensajes + mismo token puede usarse en normalizador para medios). */
   @IsOptional()
   @IsString()
   WHATSAPP_PHONE_NUMBER_ID?: string;
 
-  /** Token de acceso de la app de Meta para Graph API (enviar mensajes) */
   @IsOptional()
   @IsString()
   WHATSAPP_GRAPH_API_TOKEN?: string;
@@ -32,27 +31,15 @@ export class EnvironmentVariables {
   @IsString()
   WHATSAPP_GRAPH_API_VERSION?: string;
 
-  /** Texto de la pregunta previa a enriquecer (cliente actual vs potencial) */
-  @IsOptional()
-  @IsString()
-  SERVICE_INQUIRY_MESSAGE?: string;
-
-  /** true = enviar la pregunta solo una vez por usuario (recomendado) */
-  @IsOptional()
-  @IsString()
-  SERVICE_INQUIRY_SEND_ONCE?: string;
-
-  /** Facebook Page ID (Messenger y, con IG vinculada, envío Instagram) */
+  /** Messenger e Instagram Direct: Send API de la página. */
   @IsOptional()
   @IsString()
   META_PAGE_ID?: string;
 
-  /** Token de página (messages para Messenger / Instagram Direct) */
   @IsOptional()
   @IsString()
   META_PAGE_ACCESS_TOKEN?: string;
 
-  /** Si la página de Instagram difiere de META_PAGE_ID (poco habitual) */
   @IsOptional()
   @IsString()
   INSTAGRAM_PAGE_ID?: string;
