@@ -154,6 +154,7 @@ En el panel de Meta, navega a Webhooks. Selecciona la URL de devolución (ej. ht
 ## 4) Revisión de Aplicación (App Review)
 
 Para operar en producción con clientes reales, deberás solicitar la aprobación de permisos críticos como whatsapp_business_messaging, pages_messaging e instagram_manage_messages.
+
 ---
 
 # 🐳 Ejecución con Docker
