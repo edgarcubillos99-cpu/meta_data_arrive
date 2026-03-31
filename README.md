@@ -1,7 +1,7 @@
 📱 Meta OmniChannel Ingestion Service
 
 Este proyecto es un microservicio backend de alto rendimiento desarrollado en NestJS diseñado para la ingesta, normalización y enrutamiento de mensajes provenientes del ecosistema de Meta (WhatsApp Cloud API, Messenger e Instagram). Actúa como la capa de entrada (Gateway) y preparación de datos para sistemas de Inteligencia Artificial (LLM + MCP), utilizando RabbitMQ como bus de eventos.
-📑 Tabla de Contenidos
+#📑 Tabla de Contenidos
 
     Arquitectura del Sistema
 
@@ -25,7 +25,7 @@ Este proyecto es un microservicio backend de alto rendimiento desarrollado en Ne
 
     Despliegue
 
-1. Arquitectura del Sistema
+##1. Arquitectura del Sistema
 
 El sistema sigue una arquitectura orientada a eventos estrictamente desacoplada:
 
@@ -43,55 +43,7 @@ El sistema sigue una arquitectura orientada a eventos estrictamente desacoplada:
 
     Enrutamiento (RabbitMQ): El mensaje procesado (con la URL local del archivo y su metadata) se publica en el telecom_exchange hacia colas específicas por canal.
 
-Gemini dijo
-
-Aquí tienes la estructura en formato README.md profesional, lista para ser añadida a tu repositorio. He organizado todo el análisis, la arquitectura y los pasos de configuración de Meta para que sirva como documentación oficial del proyecto.
-📱 Meta OmniChannel Ingestion Service
-
-Este proyecto es un microservicio backend de alto rendimiento desarrollado en NestJS diseñado para la ingesta, normalización y enrutamiento de mensajes provenientes del ecosistema de Meta (WhatsApp Cloud API, Messenger e Instagram). Actúa como la capa de entrada (Gateway) y preparación de datos para sistemas de Inteligencia Artificial (LLM + MCP), utilizando RabbitMQ como bus de eventos.
-📑 Tabla de Contenidos
-
-    Arquitectura del Sistema
-
-    Estado Actual y Evaluación
-
-    Flujo de Preparación para IA
-
-    Requisitos Previos
-
-    Configuración en Meta for Developers
-
-        A. Creación de la App
-
-        B. Vinculación de Canales
-
-        C. Configuración del Webhook
-
-        D. Permisos para Producción
-
-    Configuración del Entorno
-
-    Despliegue
-
-1. Arquitectura del Sistema
-
-El sistema sigue una arquitectura orientada a eventos estrictamente desacoplada:
-
-    Ingesta (Webhooks): Un único endpoint centralizado recibe los eventos de Meta, validando firmas y tokens de seguridad.
-
-    Normalización: Los payloads dispares de WhatsApp (Graph API) y Messenger/Instagram se transforman en un DTO estándar estandarizado.
-
-    Manejo de Archivos (Seguro): - Descarga mediante streams para optimizar el uso de memoria.
-
-        Validación de "magic bytes" (MIME type real).
-
-        Escaneo antivirus mediante ClamAV (vía TCP).
-
-        Almacenamiento en volumen local (sin servicios en la nube externos).
-
-    Enrutamiento (RabbitMQ): El mensaje procesado (con la URL local del archivo y su metadata) se publica en el telecom_exchange hacia colas específicas por canal.
-
-2. Estado Actual y Evaluación
+##2. Estado Actual y Evaluación
 ✅ Puntos Fuertes Implementados
 
     Eficiencia de Memoria: El uso de streams en MediaService evita cargar buffers grandes en memoria al descargar multimedia.
@@ -106,7 +58,7 @@ El sistema sigue una arquitectura orientada a eventos estrictamente desacoplada:
 
     Topología RabbitMQ: Se debe implementar la aserción explícita de colas (incoming_whatsapp, incoming_messenger, incoming_instagram) y la configuración de sus respectivas Dead-Letter Queues (DLQ) en RabbitPublisherService para asegurar tolerancia a fallos.
 
-3. Flujo de Preparación para IA
+##3. Flujo de Preparación para IA
 
 Este microservicio NO ejecuta procesamiento cognitivo de archivos. Su responsabilidad termina al entregar un evento enriquecido y seguro al message broker.
 
@@ -121,7 +73,7 @@ El payload entregado a los consumidores (Agentes LLM/MCP) incluye:
     user_id y metadatos del canal.
 
 El LLM consumidor es responsable de: Decidir bajo demanda qué tool (herramienta) utilizar para transcribir el audio, analizar la imagen (Vision) o extraer texto del PDF utilizando la URL proporcionada.
-4. Requisitos Previos
+##4. Requisitos Previos
 
     Node.js v18+ y NestJS CLI
 
@@ -133,7 +85,7 @@ El LLM consumidor es responsable de: Decidir bajo demanda qué tool (herramienta
 
     Un servidor expuesto con HTTPS (ej. ngrok para desarrollo, Nginx/Traefik para producción)
 
-5. Configuración en Meta for Developers
+##5. Configuración en Meta for Developers
    
 A. Creación de la App
 
@@ -189,7 +141,7 @@ Para operar con usuarios finales, solicita revisión para:
 
     instagram_basic y pages_show_list
 
-6. Configuración del Entorno
+##6. Configuración del Entorno
 
 Copia el archivo .env.template a .env y configura las variables:
 Fragmento de código
@@ -211,7 +163,7 @@ WHATSAPP_GRAPH_API_TOKEN=token_permanente_del_usuario_del_sistema
 META_PAGE_ID=id_de_la_pagina_facebook
 META_PAGE_ACCESS_TOKEN=token_de_pagina_facebook
 
-7. Despliegue
+##7. Despliegue
 
 El despliegue está contenerizado para garantizar el aislamiento del motor antivirus (ClamAV) y la aplicación NestJS.
 
