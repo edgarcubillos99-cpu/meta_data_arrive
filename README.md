@@ -180,7 +180,8 @@ Para ver registros en tiempo real:
 docker logs -f meta_data_arrive_app
 ```
 ---
-🧩 Diseño del Sistema
+
+# 🧩 Diseño del Sistema
 
 ✔ Abstracción de Canales (NormalizerService): Las estructuras de datos difieren drásticamente entre WhatsApp y Messenger/Instagram (entry[].messaging[]). El servicio de normalización procesa estas diferencias de raíz y genera un DTO homogéneo.
 
@@ -190,7 +191,7 @@ docker logs -f meta_data_arrive_app
 
 ---
 
-💾 Modelo de Datos (Payloads)
+# 💾 Modelo de Datos (Payloads)
 
 El DTO normalizado que se publica en RabbitMQ y que el LLM consume es estrictamente estructurado:
 
