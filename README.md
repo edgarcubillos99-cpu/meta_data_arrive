@@ -97,8 +97,9 @@ I -->|incoming_whatsapp / etc.| J[Consumidor: Agentes IA / LLM]
 💻 Aplicación y Puerto
 
 PORT=3000
+
 --------------------------------------------------------
-🌍 URL PÚBLICA (Ngrok o Producción)
+### 🌍 URL PÚBLICA (Ngrok o Producción)
 --------------------------------------------------------
 IMPORTANTE: Esta URL es necesaria para recibir webhooks de Meta
 y para generar la URL pública de los archivos estáticos almacenados.
@@ -106,19 +107,19 @@ y para generar la URL pública de los archivos estáticos almacenados.
 APP_BASE_URL=https://tu-dominio-seguro.com
 
 --------------------------------------------------------
-🟢 WEBHOOKS & SEGURIDAD META
+### 🟢 WEBHOOKS & SEGURIDAD META
 --------------------------------------------------------
 META_VERIFY_TOKEN=token_manual_para_webhook_super_seguro
 
 META_APP_SECRET=secreto_de_la_app_en_meta_developers
 
 --------------------------------------------------------
-🐇 MESSAGE BROKER (RabbitMQ)
+### 🐇 MESSAGE BROKER (RabbitMQ)
 --------------------------------------------------------
 RABBITMQ_URI=amqp://usuario:password@tu-servidor-rabbitmq:5672
 
 --------------------------------------------------------
-📱 CREDENCIALES CANALES (WhatsApp / Page)
+### 📱 CREDENCIALES CANALES (WhatsApp / Page)
 --------------------------------------------------------
 WHATSAPP_PHONE_NUMBER_ID=id_del_numero_de_whatsapp
 
