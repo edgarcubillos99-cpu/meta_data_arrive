@@ -1,6 +1,7 @@
 📱 Meta OmniChannel Ingestion Service
 
 Este proyecto es un microservicio backend de alto rendimiento desarrollado en NestJS diseñado para la ingesta, normalización y enrutamiento de mensajes provenientes del ecosistema de Meta (WhatsApp Cloud API, Messenger e Instagram). Actúa como la capa de entrada (Gateway) y preparación de datos para sistemas de Inteligencia Artificial (LLM + MCP), utilizando RabbitMQ como bus de eventos.
+
 #📑 Tabla de Contenidos
 
     Arquitectura del Sistema
