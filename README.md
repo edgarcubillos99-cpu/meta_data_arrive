@@ -230,9 +230,6 @@ El enrutamiento (Routing Keys) se realiza dinámicamente utilizando la propiedad
 
     incoming_instagram
 
-Manejo de Errores y Tolerancia a Fallos:
-Se recomienda declarar y bindear una Dead-Letter Queue (DLQ) para cada canal. Si el LLM o el consumidor falla en el procesamiento del evento, el mensaje se enviará a la DLQ para reintentos o auditoría manual, evitando la pérdida de interacciones con los clientes.
-
 ---
 
 # 🛡️ Seguridad (MIME & ClamAV)
