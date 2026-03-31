@@ -220,15 +220,22 @@ El DTO normalizado que se publica en RabbitMQ y que el LLM consume es estrictame
 
 Condiciones de Publicación:
 
-El RabbitPublisherService despacha los eventos a un Exchange centralizado llamado telecom_exchange.
+El `RabbitPublisherService` despacha los eventos a un *Exchange* centralizado llamado `telecom_exchange`.
 
-El enrutamiento (Routing Keys) se realiza dinámicamente utilizando la propiedad source del DTO normalizado, distribuyendo la carga hacia las colas correspondientes:
+El enrutamiento (Routing Keys) se realiza dinámicamente utilizando la propiedad `source` del DTO normalizado, distribuyendo la carga hacia las colas correspondientes:
+- `incoming_whatsapp`
+- `incoming_messenger`
+- `incoming_instagram`
 
-    incoming_whatsapp
+**Manejo de Errores y Tolerancia a Fallos (Dead-Letter Queues):**
+El sistema está configurado con topología de cuarentena automática. Si el consumidor (Agente IA / LLM) rechaza un mensaje (`NACK`) por un fallo en la API, formato inválido o caída de red, RabbitMQ no descartará el mensaje ni entrará en un bucle infinito. 
 
-    incoming_messenger
+El evento será enrutado automáticamente a un exchange de fallos (`telecom_dlx_exchange`) y almacenado en la Dead-Letter Queue correspondiente:
+- `dlq_incoming_whatsapp`
+- `dlq_incoming_messenger`
+- `dlq_incoming_instagram`
 
-    incoming_instagram
+Esto permite auditoría manual, retención de los mensajes de los clientes y un posterior re-procesamiento (requeue) cuando el sistema consumidor vuelva a estar estable.
 
 ---
 
